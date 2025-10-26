@@ -28,5 +28,4 @@ Hosted on AWS EC2: `http://<your-ec2-public-ip>`
 Include screenshots of:
 - Homepage
 - Product listing
-- Admin dashboard
 - Order flow
