@@ -1,4 +1,4 @@
-/* Base styles */
+/* Base styles */ 
 body {
   margin: 0;
   padding: 0;
@@ -57,7 +57,7 @@ body {
 
 /* Dropdown */
 .dropbtn {
-  font-size: 28px;
+  font-size: 18px;
   background: none;
   border: none;
   color: white;
@@ -120,7 +120,7 @@ body {
 
 /* Container */
 .container {
-  max-width: 800px;
+  max-width: 900px;
   margin: 40px auto;
   background: #ffffff;
   padding: 40px;

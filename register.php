@@ -1,12 +1,26 @@
 <?php
+session_start();
 include 'db.php';
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-  $email = $_POST['email'];
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+  $username = trim($_POST['username']);
+  $email = trim($_POST['email']);
   $password = $_POST['password'];
-  $stmt = $conn->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
-  $stmt->bind_param("ss", $email, $password);
-  $stmt->execute();
-  header("Location: login.php");
+
+  if (empty($username) || empty($email) || empty($password)) {
+    $error = "Please fill all fields.";
+  } else {
+    $hash = password_hash($password, PASSWORD_BCRYPT);
+    $stmt = $conn->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
+    $stmt->bind_param("sss", $username, $email, $hash);
+    try {
+      $stmt->execute();
+      header("Location: login.php");
+      exit();
+    } catch (mysqli_sql_exception $e) {
+      $error = "Email already registered.";
+    }
+  }
 }
 ?>
 <!DOCTYPE html>
@@ -24,7 +38,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   <div class="form-box">
     <h1 class="brand-title">Join Studex</h1>
     <h2>Register</h2>
+    <?php if (isset($error)) echo "<p class='error'>$error</p>"; ?>
     <form method="POST">
+      <input type="text" name="username" placeholder="Full Name" required>
       <input type="email" name="email" placeholder="College Email" required>
       <input type="password" name="password" placeholder="Create Password" required>
       <button type="submit">Register</button>

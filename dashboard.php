@@ -10,90 +10,53 @@ if (!isset($_SESSION['email'])) {
 
 $email = $_SESSION['email'];
 
-// Handle Buy Now
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['product_id'])) {
-  $product_id = $_POST['product_id'];
-  $quantity = $_POST['quantity'];
-  $payment = $_POST['payment'];
-  $address = $_POST['delivery_address'];
+// Counts (use consistent column names)
+$product_count = $conn->query("SELECT COUNT(*) AS total FROM products WHERE seller_email='$email'")->fetch_assoc()['total'];
+$order_count = $conn->query("SELECT COUNT(*) AS total FROM orders WHERE buyer_email='$email'")->fetch_assoc()['total'];
+$cart_count = $conn->query("SELECT COUNT(*) AS total FROM cart WHERE user_email='$email'")->fetch_assoc()['total'];
 
-  $stock_result = $conn->query("SELECT stock FROM products WHERE id=$product_id");
-  if ($stock_result && $stock_result->num_rows > 0) {
-    $stock = $stock_result->fetch_assoc()['stock'];
-    if ($stock >= $quantity) {
-      $stmt = $conn->prepare("INSERT INTO orders (email, product_id, quantity, payment, delivery_address) VALUES (?, ?, ?, ?, ?)");
-      $stmt->bind_param("siiss", $email, $product_id, $quantity, $payment, $address);
-      $stmt->execute();
-      $conn->query("UPDATE products SET stock = stock - $quantity WHERE id = $product_id");
-      $success = "✅ Order placed!";
-    } else {
-      $error = "❌ Not enough stock!";
-    }
-  } else {
-    $error = "❌ Product not found!";
-  }
-}
-
-// Handle Add to Cart
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_to_cart'])) {
-  $product_id = $_POST['add_to_cart'];
-  $exists = $conn->query("SELECT * FROM cart WHERE email='$email' AND product_id=$product_id");
-  if ($exists->num_rows == 0) {
-    $conn->query("INSERT INTO cart (email, product_id) VALUES ('$email', $product_id)");
-    $success = "✅ Item added to cart!";
-  } else {
-    $error = "⚠️ Item already in cart!";
-  }
-}
-
-$products = $conn->query("SELECT * FROM products");
+$products = $conn->query("SELECT * FROM products ORDER BY id DESC");
 ?>
 <!DOCTYPE html>
 <html>
 <head><title>Dashboard - Studex</title><link rel="stylesheet" href="style.css"></head>
 <body>
 <div class="container">
-  <h2>Welcome, <?php echo $email; ?>!</h2>
+  <h2>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?> 👋</h2>
+
+  <div style="display:flex;gap:20px;margin-bottom:20px;">
+    <div style="padding:12px;border-radius:8px;background:#f0f8ff;">🛍️ My Products: <strong><?php echo $product_count; ?></strong></div>
+    <div style="padding:12px;border-radius:8px;background:#f0f8ff;">🧾 My Orders: <strong><?php echo $order_count; ?></strong></div>
+    <div style="padding:12px;border-radius:8px;background:#f0f8ff;">🛒 My Cart: <strong><?php echo $cart_count; ?></strong></div>
+  </div>
+
   <h3>Available Products</h3>
-  <?php if (isset($success)) echo "<p class='success'>$success</p>"; ?>
-  <?php if (isset($error)) echo "<p class='error'>$error</p>"; ?>
   <div class="product-grid">
-    <?php while ($row = $products->fetch_assoc()): ?>
+    <?php if ($products->num_rows > 0): ?>
+      <?php while ($p = $products->fetch_assoc()): ?>
       <div class="product-card">
-        <h4><?php echo $row['name']; ?></h4>
-        <p>₹<?php echo $row['price']; ?></p>
-        <p>Stock: <?php echo $row['stock']; ?></p>
-        <p>Brand: <?php echo $row['brand']; ?></p>
+        <h4><?php echo htmlspecialchars($p['name']); ?></h4>
+        <p>Brand: <?php echo htmlspecialchars($p['brand']); ?></p>
+        <p>₹<?php echo number_format($p['price'],2); ?></p>
+        <p>Stock: <?php echo intval($p['stock']); ?></p>
 
-        <!-- Buy Now Form -->
-        <form method="POST">
-          <input type="hidden" name="product_id" value="<?php echo $row['id']; ?>">
-          <label>Quantity:</label>
-          <select name="quantity">
-            <?php for ($i = 1; $i <= min(5, $row['stock']); $i++): ?>
-              <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
-            <?php endfor; ?>
-          </select>
-          <label>Payment Method:</label>
-          <select name="payment">
-            <option value="Cash on Delivery">Cash on Delivery</option>
-            <option value="UPI">UPI</option>
-            <option value="Debit Card">Debit Card</option>
-            <option value="Credit Card">Credit Card</option>
-            <option value="Net Banking">Net Banking</option>
-          </select>
-          <label>Delivery Address:</label>
-          <textarea name="delivery_address" required></textarea>
-          <button type="submit">Buy Now</button>
-        </form>
+        <?php if (intval($p['stock']) > 0): ?>
+          <a href="add_to_cart.php?id=<?php echo $p['id']; ?>" class="back-btn">🛒 Add to Cart</a>
+        <?php else: ?>
+          <button disabled style="background:gray; cursor:not-allowed;">Out of Stock</button>
+        <?php endif; ?>
 
-        <!-- Add to Cart Form -->
-        <form method="POST">
-          <input type="hidden" name="add_to_cart" value="<?php echo $row['id']; ?>">
-          <button type="submit">Add to Cart</button>
-        </form>
+        <?php if ($p['seller_email'] === $email): ?>
+          <div style="margin-top:8px;">
+            <a href="edit_product.php?id=<?php echo $p['id']; ?>" class="back-btn">✏️ Edit</a> |
+            <a href="add_product.php?delete=<?php echo $p['id']; ?>" onclick="return confirm('Delete this product?')" class="back-btn" style="color:#ff4136;">🗑️ Delete</a>
+          </div>
+        <?php endif; ?>
       </div>
-    <?php endwhile; ?>
+      <?php endwhile; ?>
+    <?php else: ?>
+      <p class="error">No products available.</p>
+    <?php endif; ?>
   </div>
 </div>
 </body>
